@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Discord Webhook Manager — Glass Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+  <style>
+    :root{
+      --bg:#0b0f19;           /* базовый фон */
+      --card:#0f172a99;       /* стекло-панель */
+      --glass:rgba(15,23,42,.55);
+      --text:#e5e7eb;         /* основной текст */
+      --muted:#9ca3af;        /* вторичный текст */
+      --border:rgba(148,163,184,.25);
+      --accent:#8b5cf6;       /* неон-акцент */
+      --accent-2:#22d3ee;     /* доп. акцент */
+      --ok:#10b981;           /* успех */
+      --err:#ef4444;          /* ошибка */
+      --warn:#f59e0b;
+      --shadow:0 10px 40px rgba(139,92,246,.25),0 2px 8px rgba(2,6,23,.35);
+      --radius:20px;
+    }
+    [data-theme="light"]{
+      --bg:#f8fafc;
+      --card:rgba(255,255,255,.7);
+      --glass:rgba(255,255,255,.55);
+      --text:#0b1220;
+      --muted:#475569;
+      --border:rgba(15,23,42,.12);
+      --shadow:0 10px 30px rgba(2,6,23,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:radial-gradient(1200px 800px at 10% -10%, rgba(34,211,238,.15), transparent 55%),
+                          radial-gradient(1200px 800px at 120% 10%, rgba(139,92,246,.18), transparent 60%),
+                          var(--bg);
+      color:var(--text); font-family:Inter,system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+      letter-spacing:.2px;
+    }
+    .container{max-width:1200px; margin:32px auto; padding:0 16px}
+    header{
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;
+    }
+    .title{display:flex; gap:12px; align-items:center}
+    .title i{font-size:20px; color:var(--accent-2)}
+    .title h1{margin:0; font-size:22px; font-weight:700; letter-spacing:.3px}
+    .title .badge{font-size:12px; padding:4px 8px; border:1px solid var(--border); border-radius:999px; color:var(--muted)}
+
+    .grid{display:grid; grid-template-columns:1.1fr .9fr; gap:18px}
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr;}}
+
+    .card{
+      background:var(--glass);
+      backdrop-filter: blur(16px) saturate(120%);
+      border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow);
+      overflow:hidden; position:relative;
+    }
+    .card .card-header{display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid var(--border)}
+    .card .card-header h2{margin:0; font-size:14px; text-transform:uppercase; letter-spacing:.14em; color:var(--muted)}
+    .card .card-body{padding:16px 18px}
+
+    .toolbar{display:flex; gap:10px; align-items:center}
+    .btn{
+      appearance:none; border:none; cursor:pointer; padding:10px 14px; border-radius:12px; 
+      background:linear-gradient(180deg, rgba(139,92,246,.18), rgba(139,92,246,.08));
+      color:var(--text); border:1px solid var(--border); font-weight:600; font-size:14px;
+      transition: .2s transform, .2s box-shadow, .2s background;
+    }
+    .btn:hover{ transform:translateY(-1px); box-shadow:0 8px 24px rgba(139,92,246,.18)}
+    .btn:active{ transform:translateY(0)}
+    .btn.secondary{ background:linear-gradient(180deg, rgba(34,211,238,.18), rgba(34,211,238,.08)); }
+    .btn.ghost{ background:transparent }
+    .btn.ok{ background:linear-gradient(180deg, rgba(16,185,129,.18), rgba(16,185,129,.08)); }
+    .btn.err{ background:linear-gradient(180deg, rgba(239,68,68,.18), rgba(239,68,68,.08)); }
+
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
+    .row-1{display:grid; grid-template-columns:1fr; gap:12px}
+
+    label{font-size:12px; color:var(--muted); display:block; margin:6px 2px}
+    input[type="text"], input[type="url"], input[type="color"], textarea{ 
+      width:100%; padding:12px 12px; background:rgba(2,6,23,.2); color:var(--text); border:1px solid var(--border); border-radius:12px; outline:none; font-size:14px;
+    }
+    textarea{ min-height:90px; resize:vertical; font-family:Inter, sans-serif }
+    input[type="color"]{ height:42px; padding:0 6px; }
+    .hint{font-size:12px; color:var(--muted)}
+    .switch{ display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none }
+    .switch input{ appearance:none; width:46px; height:26px; background:rgba(148,163,184,.3); border-radius:999px; position:relative; outline:none; transition:.2s}
+    .switch input:checked{ background:linear-gradient(90deg, var(--accent), var(--accent-2)) }
+    .switch input::after{ content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; background:#fff; border-radius:50%; transition:.2s }
+    .switch input:checked::after{ left:23px }
+
+    .dropzone{
+      border:2px dashed var(--border); border-radius:14px; padding:16px; text-align:center; color:var(--muted);
+      transition: .2s border-color, .2s background;
+    }
+    .dropzone.drag{ border-color: var(--accent); background: rgba(139,92,246,.08) }
+    .preview-img{ width:100%; max-height:280px; object-fit:contain; border-radius:12px; border:1px solid var(--border); background:#0b1220 }
+
+    .discord{
+      background:linear-gradient(180deg, rgba(2,6,23,.5), rgba(15,23,42,.5));
+      border-radius:var(--radius); border:1px solid var(--border);
+      padding:14px; display:flex; gap:12px;
+    }
+    .avatar{ width:42px; height:42px; border-radius:50%; background:#1f2937; flex:0 0 auto }
+    .message{ flex:1 1 auto }
+    .name{ font-weight:700; font-size:14px }
+    .embed{ border-left:4px solid var(--accent); background:rgba(148,163,184,.07); padding:12px; border-radius:10px; margin-top:8px; border:1px solid var(--border) }
+    .embed .etitle{ font-weight:700; margin:0 0 6px }
+    .embed .edesc{ color:var(--text); opacity:.9; white-space:pre-wrap }
+    .fields{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; margin-top:10px }
+    .field{ background:rgba(15,23,42,.35); border:1px solid var(--border); border-radius:8px; padding:8px }
+    .field .fname{ font-size:12px; color:var(--muted); margin-bottom:4px }
+    .footer{ margin-top:10px; font-size:12px; color:var(--muted) }
+
+    .kbd{ font-family:"JetBrains Mono", monospace; font-size:12px; padding:2px 6px; border:1px solid var(--border); border-radius:6px; color:var(--muted) }
+
+    /* Toasts */
+    .toasts{ position:fixed; right:18px; bottom:18px; display:flex; flex-direction:column; gap:10px; z-index:1000 }
+    .toast{ padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--card); box-shadow:var(--shadow); display:flex; align-items:center; gap:10px; animation:slideIn .25s ease both }
+    .toast.ok{ border-color:rgba(16,185,129,.35) }
+    .toast.err{ border-color:rgba(239,68,68,.35) }
+    .toast .msg{ font-size:14px }
+    @keyframes slideIn{ from{ opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+
+    .helpbar{ display:flex; gap:10px; align-items:center; color:var(--muted); font-size:12px }
+    .link{ color:var(--accent-2); text-decoration:none }
+    .sep{ height:1px; background:var(--border); margin:12px 0 }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <i class="fa-brands fa-discord"></i>
+        <h1>Discord Webhook Manager</h1>
+        <span class="badge">Glass Pro</span>
+      </div>
+      <div class="toolbar">
+        <label class="switch" title="Light / Dark">
+          <input id="theme-toggle" type="checkbox" />
+          <span style="font-size:12px;color:var(--muted)">Тема</span>
+        </label>
+        <button id="save-btn" class="btn secondary"><i class="fa-regular fa-floppy-disk"></i> Сохранить</button>
+        <button id="load-btn" class="btn ghost"><i class="fa-solid fa-rotate"></i> Загрузить</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Form -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Настройки & Контент</h2>
+          <div class="helpbar">
+            <span class="kbd">CTRL</span> + <span class="kbd">S</span> — сохранить • <span class="kbd">CTRL</span> + <span class="kbd">Enter</span> — отправить
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div>
+              <label>Webhook URL</label>
+              <input id="webhook-url" type="url" placeholder="https://discord.com/api/webhooks/..." />
+            </div>
+            <div>
+              <label>Thread ID <span class="hint">(опционально)</span></label>
+              <input id="thread-id" type="text" placeholder="123456789012345678" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Username</label>
+              <input id="username" type="text" placeholder="Boty McBotface" />
+            </div>
+            <div>
+              <label>Avatar URL</label>
+              <input id="avatar-url" type="url" placeholder="https://.../avatar.png" />
+            </div>
+          </div>
+          <div class="row-1">
+            <div>
+              <label>Сообщение (content)</label>
+              <textarea id="message-content" placeholder="Текст сообщения..."></textarea>
+              <label class="switch" style="margin-top:8px"><input id="tts" type="checkbox" /> TTS</label>
+            </div>
+          </div>
+
+          <div class="sep"></div>
+          <div class="row-3">
+            <div>
+              <label>Embed Title</label>
+              <input id="embed-title" type="text" placeholder="Заголовок" />
+            </div>
+            <div>
+              <label>Embed URL</label>
+              <input id="embed-url" type="url" placeholder="https://..." />
+            </div>
+            <div>
+              <label>Цвет</label>
+              <input id="embed-color" type="color" value="#8b5cf6" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Описание</label>
+              <textarea id="embed-description" placeholder="Описание (поддерживает переносы)"></textarea>
+            </div>
+            <div>
+              <label>Временная метка</label>
+              <select id="embed-timestamp" style="width:100%; padding:12px; border-radius:12px; background:rgba(2,6,23,.2); color:var(--text); border:1px solid var(--border)">
+                <option value="false">Без timestamp</option>
+                <option value="true">Добавить ISO-время</option>
+              </select>
+              <div style="height:8px"></div>
+              <label>Автор — имя</label>
+              <input id="author-name" type="text" placeholder="Discord Bot" />
+              <label>Автор — URL</label>
+              <input id="author-url" type="url" placeholder="https://..." />
+              <label>Автор — icon URL</label>
+              <input id="author-icon" type="url" placeholder="https://.../icon.png" />
+            </div>
+          </div>
+
+          <div class="sep"></div>
+          <div class="row">
+            <div>
+              <label>Embed Image URL</label>
+              <input id="image-url" type="url" placeholder="https://.../image.png" />
+            </div>
+            <div>
+              <label>Thumbnail URL</label>
+              <input id="thumbnail-url" type="url" placeholder="https://.../thumb.png" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Вложение (картинка) — перетащи сюда или выбери файл</label>
+              <div id="dropzone" class="dropzone">
+                <i class="fa-regular fa-image"></i> Перетащи файл сюда или кликни
+                <input id="file-input" type="file" accept="image/*" style="display:none" />
+              </div>
+              <div id="attachment-name" class="hint" style="margin-top:6px"></div>
+            </div>
+            <div>
+              <label>Предпросмотр вложения</label>
+              <img id="attachment-preview" class="preview-img" alt="preview" />
+            </div>
+          </div>
+
+          <div class="sep"></div>
+          <div class="row-1" id="fields-container">
+            <div style="display:flex; align-items:center; justify-content:space-between">
+              <label style="margin:0">Поля (fields)</label>
+              <div class="toolbar">
+                <button id="add-field" class="btn"><i class="fa-solid fa-plus"></i> Поле</button>
+                <button id="clear-fields" class="btn ghost"><i class="fa-regular fa-trash-can"></i> Очистить</button>
+              </div>
+            </div>
+            <div id="fields-list"></div>
+          </div>
+
+          <div class="sep"></div>
+          <div class="toolbar">
+            <button id="send-btn" class="btn ok"><i class="fa-solid fa-paper-plane"></i> Отправить</button>
+            <button id="reset-btn" class="btn err"><i class="fa-solid fa-eraser"></i> Сбросить</button>
+            <span id="status" class="hint"></span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT: Preview -->
+      <div class="card">
+        <div class="card-header">
+          <h2>Предпросмотр (похоже на Discord)</h2>
+          <div class="toolbar">
+            <span class="hint">живое обновление</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="discord">
+            <div class="avatar" id="preview-avatar"></div>
+            <div class="message">
+              <div><span class="name" id="preview-username">Webhook Bot</span> <span class="hint" id="preview-time">сейчас</span></div>
+              <div id="preview-content" style="white-space:pre-wrap; margin-top:6px"></div>
+              <div class="embed" id="preview-embed" style="display:none">
+                <div class="etitle" id="preview-embed-title"></div>
+                <div class="edesc" id="preview-embed-desc"></div>
+                <div class="fields" id="preview-fields"></div>
+                <div id="preview-embed-image-wrap" style="margin-top:10px; display:none">
+                  <img id="preview-embed-image" class="preview-img" style="max-height:220px" />
+                </div>
+                <div class="footer" id="preview-footer"></div>
+              </div>
+            </div>
+          </div>
+          <div class="sep"></div>
+          <label>Сырой ответ сервера</label>
+          <textarea id="response-area" placeholder="Ответ Discord появится здесь..." style="font-family: 'JetBrains Mono', monospace; min-height:120px"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="toasts" id="toasts"></div>
+  </div>
+
+  <script>
+    // ---------- helpers ----------
+    const $ = (s, r=document) => r.querySelector(s);
+    const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
+
+    function toast(msg, type='ok', ttl=2600){
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<i class="fa-solid ${type==='ok'?'fa-circle-check':'fa-triangle-exclamation'}"></i><span class="msg">${msg}</span>`;
+      $('#toasts').appendChild(t);
+      setTimeout(()=>{ t.style.transition='opacity .25s'; t.style.opacity='0'; setTimeout(()=>t.remove(), 300); }, ttl);
+    }
+
+    // ---------- theme ----------
+    const themeToggle = $('#theme-toggle');
+    function applyTheme(){
+      document.documentElement.setAttribute('data-theme', localStorage.getItem('dw_theme')||'dark');
+      themeToggle.checked = (localStorage.getItem('dw_theme')||'dark')==='light';
+    }
+    themeToggle.addEventListener('change', ()=>{
+      localStorage.setItem('dw_theme', themeToggle.checked ? 'light' : 'dark');
+      applyTheme();
+    });
+    applyTheme();
+
+    // ---------- fields dynamic ----------
+    function fieldTpl(){
+      const wrap = document.createElement('div');
+      wrap.className = 'row';
+      wrap.innerHTML = `
+        <div class="field-container" style="display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:end">
+          <div>
+            <label>Имя</label>
+            <input class="field-name-input" type="text" placeholder="Поле" />
+          </div>
+          <div>
+            <label>Значение</label>
+            <input class="field-value-input" type="text" placeholder="Значение" />
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; padding-bottom:4px">
+            <label class="switch"><input class="field-inline" type="checkbox" /><span style="font-size:12px;color:var(--muted)">inline</span></label>
+            <button class="btn ghost rm-field" title="Удалить"><i class="fa-regular fa-trash-can"></i></button>
+          </div>
+        </div>`;
+      wrap.querySelector('.rm-field').addEventListener('click', ()=>{ wrap.remove(); livePreview(); });
+      $$('#fields-list').push?.();
+      return wrap;
+    }
+    $('#add-field').addEventListener('click', ()=>{ $('#fields-list').appendChild(fieldTpl()); livePreview(); });
+    $('#clear-fields').addEventListener('click', ()=>{ $('#fields-list').innerHTML=''; livePreview(); });
+
+    // ---------- drag & drop ----------
+    const dropzone = $('#dropzone');
+    const fileInput = $('#file-input');
+    const attachName = $('#attachment-name');
+    const attachPreview = $('#attachment-preview');
+
+    function pickFile(){ fileInput.click(); }
+    dropzone.addEventListener('click', pickFile);
+    ;['dragenter','dragover'].forEach(ev=> dropzone.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.add('drag'); }));
+    ;['dragleave','drop'].forEach(ev=> dropzone.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.remove('drag'); }));
+    dropzone.addEventListener('drop', e=>{
+      if(e.dataTransfer.files && e.dataTransfer.files[0]){
+        fileInput.files = e.dataTransfer.files; afterPick();
+      }
+    });
+    fileInput.addEventListener('change', afterPick);
+    function afterPick(){
+      const f = fileInput.files[0];
+      if(!f){ attachName.textContent=''; attachPreview.src=''; livePreview(); return; }
+      attachName.textContent = `Выбрано: ${f.name} (${Math.round(f.size/1024)} KB)`;
+      const url = URL.createObjectURL(f);
+      attachPreview.src = url;
+      livePreview();
+    }
+
+    // ---------- live preview ----------
+    const p = {
+      avatar: $('#preview-avatar'),
+      user: $('#preview-username'),
+      time: $('#preview-time'),
+      content: $('#preview-content'),
+      embed: $('#preview-embed'),
+      etitle: $('#preview-embed-title'),
+      edesc: $('#preview-embed-desc'),
+      fields: $('#preview-fields'),
+      eimgWrap: $('#preview-embed-image-wrap'),
+      eimg: $('#preview-embed-image'),
+      footer: $('#preview-footer')
+    };
+
+    function livePreview(){
+      const username = $('#username').value.trim() || 'Webhook Bot';
+      const avatar = $('#avatar-url').value.trim();
+      p.user.textContent = username;
+      p.avatar.style.backgroundImage = avatar ? `url(${avatar})` : 'none';
+      p.avatar.style.backgroundSize = 'cover';
+      p.content.textContent = $('#message-content').value;
+
+      // embed
+      const title=$('#embed-title').value.trim();
+      const url=$('#embed-url').value.trim();
+      const desc=$('#embed-description').value;
+      const color=$('#embed-color').value;
+      const ts=$('#embed-timestamp').value==='true';
+      const imageUrl=$('#image-url').value.trim();
+      const thumbUrl=$('#thumbnail-url').value.trim();
+      const file=fileInput.files[0];
+
+      let has=false;
+      if(title){ p.etitle.innerHTML = url?`<a class="link" href="${url}" target="_blank">${title}</a>`:title; has=true; } else { p.etitle.textContent=''; }
+      if(desc){ p.edesc.textContent = desc; has=true; } else { p.edesc.textContent=''; }
+
+      // fields render
+      p.fields.innerHTML='';
+      $$('#fields-list .field-container').forEach(c=>{
+        const name=c.querySelector('.field-name-input').value.trim();
+        const value=c.querySelector('.field-value-input').value.trim();
+        const inline=c.querySelector('.field-inline').checked;
+        if(!name||!value) return;
+        const el=document.createElement('div');
+        el.className='field'; el.style.gridColumn= inline? 'span 1' : '1 / -1';
+        el.innerHTML=`<div class="fname">${name}</div><div>${value}</div>`;
+        p.fields.appendChild(el); has=true;
+      });
+
+      // image priority: file attachment -> imageUrl
+      let imgShown=false;
+      if(file){
+        p.eimg.src = URL.createObjectURL(file);
+        p.eimgWrap.style.display='block'; imgShown=true; has=true;
+      } else if(imageUrl){
+        p.eimg.src=imageUrl; p.eimgWrap.style.display='block'; imgShown=true; has=true;
+      } else { p.eimg.src=''; p.eimgWrap.style.display='none'; }
+
+      // footer
+      let ft='';
+      if(ts){ ft += new Date().toLocaleString(); }
+      if(thumbUrl){ ft += (ft?' • ':'') + 'thumb: '+thumbUrl; }
+      p.footer.textContent = ft;
+
+      p.embed.style.display = has? 'block':'none';
+      p.embed.style.borderLeftColor = color;
+    }
+
+    // attach live listeners
+    ['input','change','keyup'].forEach(ev=>{
+      document.body.addEventListener(ev, e=>{
+        if(e.target.matches('input, textarea, select')) livePreview();
+      });
+    });
+
+    // ---------- save/load (localStorage) ----------
+    const LS_KEY = 'dw_config_v2';
+    function collect(){
+      const cfg={
+        webhookUrl: $('#webhook-url').value,
+        threadId: $('#thread-id').value,
+        username: $('#username').value,
+        avatarUrl: $('#avatar-url').value,
+        content: $('#message-content').value,
+        tts: $('#tts').checked,
+        embed:{
+          title: $('#embed-title').value, url: $('#embed-url').value, description: $('#embed-description').value,
+          color: $('#embed-color').value, timestamp: $('#embed-timestamp').value,
+          author:{ name: $('#author-name').value, url: $('#author-url').value, icon: $('#author-icon').value },
+          imageUrl: $('#image-url').value, thumb: $('#thumbnail-url').value,
+          fields: $$('#fields-list .field-container').map(c=>({
+            name:c.querySelector('.field-name-input').value,
+            value:c.querySelector('.field-value-input').value,
+            inline:c.querySelector('.field-inline').checked,
+          }))
+        }
+      };
+      return cfg;
+    }
+    function apply(cfg){
+      if(!cfg) return;
+      $('#webhook-url').value = cfg.webhookUrl||'';
+      $('#thread-id').value = cfg.threadId||'';
+      $('#username').value = cfg.username||'';
+      $('#avatar-url').value = cfg.avatarUrl||'';
+      $('#message-content').value = cfg.content||'';
+      $('#tts').checked = !!cfg.tts;
+      if(cfg.embed){
+        $('#embed-title').value = cfg.embed.title||'';
+        $('#embed-url').value = cfg.embed.url||'';
+        $('#embed-description').value = cfg.embed.description||'';
+        $('#embed-color').value = cfg.embed.color||'#8b5cf6';
+        $('#embed-timestamp').value = cfg.embed.timestamp||'false';
+        $('#author-name').value = (cfg.embed.author&&cfg.embed.author.name)||'';
+        $('#author-url').value = (cfg.embed.author&&cfg.embed.author.url)||'';
+        $('#author-icon').value = (cfg.embed.author&&cfg.embed.author.icon)||'';
+        $('#image-url').value = cfg.embed.imageUrl||'';
+        $('#thumbnail-url').value = cfg.embed.thumb||'';
+        $('#fields-list').innerHTML='';
+        (cfg.embed.fields||[]).forEach(f=>{ const el=fieldTpl();
+          el.querySelector('.field-name-input').value=f.name||'';
+          el.querySelector('.field-value-input').value=f.value||'';
+          el.querySelector('.field-inline').checked=!!f.inline;
+          $('#fields-list').appendChild(el);
+        });
+      }
+      livePreview();
+    }
+    function save(){ localStorage.setItem(LS_KEY, JSON.stringify(collect())); toast('Сохранено', 'ok'); }
+    function load(){ const cfg = JSON.parse(localStorage.getItem(LS_KEY)||'null'); apply(cfg); toast('Загружено', 'ok'); }
+    $('#save-btn').addEventListener('click', save);
+    $('#load-btn').addEventListener('click', load);
+    window.addEventListener('keydown', e=>{
+      if((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='s'){ e.preventDefault(); save(); }
+      if((e.ctrlKey||e.metaKey) && e.key==='Enter'){ e.preventDefault(); sendWebhook(); }
+    });
+    // авто-загрузка при старте
+    apply(JSON.parse(localStorage.getItem(LS_KEY)||'null'));
+
+    // ---------- send webhook (multipart для файла) ----------
+    async function sendWebhook(){
+      const webhookUrl = $('#webhook-url').value.trim();
+      const responseArea = $('#response-area');
+      responseArea.value='';
+      if(!/^https:\/\/discord\.com\/api\/webhooks\//.test(webhookUrl)){
+        toast('Укажи корректный Webhook URL', 'err');
+        return;
+      }
+
+      const payload = {
+        username: $('#username').value.trim() || undefined,
+        avatar_url: $('#avatar-url').value.trim() || undefined,
+        content: $('#message-content').value.trim() || undefined,
+        tts: $('#tts').checked,
+        embeds: []
+      };
+      const threadId = $('#thread-id').value.trim();
+      if(threadId) payload.thread_id = threadId; // при запросе добавится как query-параметр у Discord
+
+      const embed = {};
+      let hasEmbed = false;
+
+      const t=$('#embed-title').value.trim(); if(t){ embed.title=t; hasEmbed=true; }
+      const u=$('#embed-url').value.trim(); if(u){ embed.url=u; hasEmbed=true; }
+      const d=$('#embed-description').value; if(d){ embed.description=d; hasEmbed=true; }
+      const ts = $('#embed-timestamp').value==='true'; if(ts){ embed.timestamp = new Date().toISOString(); hasEmbed=true; }
+      const color = $('#embed-color').value; if(color){ const c=parseInt(color.replace('#',''),16); if(!isNaN(c)){ embed.color=c; hasEmbed=true; }}
+
+      const an=$('#author-name').value.trim();
+      const au=$('#author-url').value.trim();
+      const ai=$('#author-icon').value.trim();
+      if(an){ embed.author={ name: an }; if(au) embed.author.url=au; if(ai) embed.author.icon_url=ai; hasEmbed=true; }
+
+      const fl=[]; $$('#fields-list .field-container').forEach(c=>{
+        const n=c.querySelector('.field-name-input').value.trim();
+        const v=c.querySelector('.field-value-input').value.trim();
+        const i=c.querySelector('.field-inline').checked;
+        if(n && v) fl.push({name:n, value:v, inline:i});
+      });
+      if(fl.length){ embed.fields=fl; hasEmbed=true; }
+
+      const file = fileInput.files[0];
+      const imageUrl = $('#image-url').value.trim();
+      const thumb = $('#thumbnail-url').value.trim();
+
+      let useForm=false; let formData=null;
+      if(file){
+        embed.image = { url: 'attachment://' + file.name };
+        hasEmbed = true; useForm=true;
+      } else {
+        if(imageUrl){ embed.image = { url: imageUrl }; hasEmbed = true; }
+      }
+      if(thumb){ embed.thumbnail = { url: thumb }; hasEmbed=true; }
+
+      if(hasEmbed) payload.embeds.push(embed);
+      if(!(payload.content && payload.content.length) && !hasEmbed){ toast('Сообщение пустое — добавь текст или embed', 'err'); return; }
+
+      const btn = $('#send-btn');
+      btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Отправка...';
+
+      try{
+        let res;
+        if(useForm){
+          formData = new FormData();
+          formData.append('payload_json', JSON.stringify(payload));
+          formData.append('files[0]', file, file.name);
+          res = await fetch(webhookUrl, { method:'POST', body: formData });
+        } else {
+          res = await fetch(webhookUrl, {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+          });
+        }
+        const text = await res.text();
+        if(res.ok){ toast('Отправлено ✔', 'ok'); responseArea.value = text || 'OK'; }
+        else{ toast('Ошибка отправки', 'err'); responseArea.value = `HTTP ${res.status} — ${text}`; }
+      } catch(e){
+        toast('Ошибка: '+e.message, 'err');
+        responseArea.value = 'Exception: ' + e.message;
+      } finally{
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Отправить';
+      }
+    }
+
+    $('#send-btn').addEventListener('click', sendWebhook);
+    $('#reset-btn').addEventListener('click', ()=>{ localStorage.removeItem(LS_KEY); location.reload(); });
+
+    // стартовый render
+    livePreview();
+  </script>
+</body>
+</html>
